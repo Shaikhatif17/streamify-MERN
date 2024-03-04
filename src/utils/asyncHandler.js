@@ -2,10 +2,11 @@
 //this asyncHnadler is created by the use of promises
 
 const asyncHandler = (requestHandler) => {
-  (req, res, next) => {
+  return(req, res, next) => {
     Promise.resolve(requestHandler(req, res, next).catch((err) => next(err)));
   };
 };
+ export {asyncHandler}
 
 //this is asyncHandlre is write by the use of try catch
 //asyncHandler is higher order function which returns a function as an arguement:--
