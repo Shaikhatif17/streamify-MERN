@@ -4,6 +4,24 @@ import { User } from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinaryService.js"
 import { apiResponse } from "../utils/apiResponse.js"
 
+
+const generateAccessAndRefreshToken = async(userId)=>{
+try{
+    const user = User.findById(userId)
+    const accessToken = user.generateAccessToken()
+    const refreshToken = user.generateRefreshToken()
+     user.refreshToken =refreshToken
+    return{accessToken ,refreshToken}
+    user.save({validateBeforeSave :true})
+}
+catch(error){
+    throw new apiError(500 , "something went wrong while generating access and refresh token")
+}
+
+}
+
+
+
 const registerUser = asyncHandler(async(req,res)=>{
    //get user details from frontend
    //validation -- make sure email and password are not empty
@@ -77,6 +95,44 @@ const registerUser = asyncHandler(async(req,res)=>{
 
 })
 
+const loginUser = asyncHandler(
+    async(req,res)=>{
+        //get data from req.body
+      //login with username or email
+      //find user
+      //check paswsword 
+      //generate access token and refresh token
+      
+      //return response with cookies
+
+      const {email,username ,password} =req.body
+      if( !username || !email){
+        throw new apiError(400 , "email or username required")
+      }
+
+    const user = await User.findOne({
+        $or: [ {email}, {username}]
+      })
+
+     const isPasswordValid = user.isPasswordCorrect(password)
+     
+    const {accessToken,refreshToken}= await generateAccessAndRefreshToken(user._id)
+    const loggedInUser = await User.findById(user._id).select(
+        " -password -refreshToken"
+     )
+    const options = {
+        httpOnly :true,
+        secure: true,
+    }
+      res.status(200)
+      .cookie("accessToken", )
+      
+       
+    }
+)
 
 
-export  {registerUser};
+export  {
+    registerUser,
+    loginUser
+};
