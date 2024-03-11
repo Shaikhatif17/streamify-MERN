@@ -7,12 +7,12 @@ import { apiResponse } from "../utils/apiResponse.js"
 
 const generateAccessAndRefreshToken = async(userId)=>{
 try{
-    const user = User.findById(userId)
+    const user = await User.findById(userId)
     const accessToken = user.generateAccessToken()
     const refreshToken = user.generateRefreshToken()
      user.refreshToken =refreshToken
     return{accessToken ,refreshToken}
-    user.save({validateBeforeSave :true})
+    user.save({validateBeforeSave :false})
 }
 catch(error){
     throw new apiError(500 , "something went wrong while generating access and refresh token")
@@ -113,9 +113,15 @@ const loginUser = asyncHandler(
     const user = await User.findOne({
         $or: [ {email}, {username}]
       })
+      if(!user){
+        throw new apiError(404, "user does not exist")
+      }
 
      const isPasswordValid = user.isPasswordCorrect(password)
-     
+     if(!isPasswordValid){
+        throw new apiError(401 , "invalid user credentials")
+     };
+
     const {accessToken,refreshToken}= await generateAccessAndRefreshToken(user._id)
     const loggedInUser = await User.findById(user._id).select(
         " -password -refreshToken"
@@ -124,15 +130,53 @@ const loginUser = asyncHandler(
         httpOnly :true,
         secure: true,
     }
-      res.status(200)
-      .cookie("accessToken", )
+     
+
+    return res.status(200)
+    .cookie('accessToken' ,accessToken ,options)
+    .cookie('refreshToken', refreshToken , options)
+    .json(
+        new apiResponse(200 ,
+            {
+                user : loggedInUser,accessToken,refreshToken,
+            },
+            "user logged In successfully")
+    )
+
       
        
+    })
+
+    const logOutUser = asyncHandler(async(req,res)=>{
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set :{
+                refreshToken :undefined
+            }
+        },{
+            new :true
+        }
+     )
+     const options = {
+       httpOnly :true,
+       secure :true,
+     }
+     
+     return res
+     .status(200)
+     .clearCookie("accessToken",options)
+     .clearCookie("refreshToken", options)
+     .json(
+        new apiResponse(200 , {}, "user logged out successfully")
+     )
     }
-)
+    )
+
 
 
 export  {
     registerUser,
-    loginUser
+    loginUser,
+    logOutUser
 };
