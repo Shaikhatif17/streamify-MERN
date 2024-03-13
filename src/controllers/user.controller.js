@@ -230,7 +230,7 @@ const getCurrentUser = asyncHandler(async(req,res)=>{
 
 const updateAccoutDetails = asyncHandler(async(req,res)=>{
     const {email , fullName} = req.body
-      if(!(email && fullName)){
+      if(!(email || fullName)){
         throw new apiError(400 , "all fields are required")
          }
 
@@ -294,6 +294,77 @@ if(!coverImage.url){
     .json(
        new apiResponse(200 , user , "coverImage updated successfully")
        )
+})
+
+const getUserCHannelProfile = asyncHandler(async(req,res)=>{
+  const {username} = req.params
+  if(!username){
+    throw new apiError(400 , "user does not exsit")
+
+  }
+ const channel = await User.aggregate([
+   {
+    $match:{
+      username:username?.toLowerCase()
+    }
+   },
+   {
+    $lookup:{
+      from: "subscriptions",
+      localField :"_id",
+      foreignField :"channel",
+      as: "subscribers"
+
+    }
+   },
+   {
+    $lookup:{
+      from :"subscriptions",
+      localField:"_id",
+      foreignField:"subscriber",
+      as : "subscribedTo"
+    }
+   },
+   {
+    $addFields:{
+      subscribersCount :{
+        $size :"$subscribers"
+      },
+      channelsSubscribedTo :{
+        $size: "$subscribedTo"
+      },
+      isSubscribed:{
+        $cond:{
+          if:{$in:[req.user?._id, "$subscribers.subscriber"]}
+        }
+      }
+    }
+   },
+   {
+    $project:{
+      fullName:1,
+      username:1,
+      email:1,
+      subscribersCount:1,
+      channelsSubscribedTo:1,
+      isSubscribed:1,
+      coverImage:1,
+      avatar:1,
+
+
+    }
+   }
+  ])
+  if(!channel?.length){
+    throw new apiError(400 , "channel does not exist")
+  }
+
+  return res
+  .status(200)
+  .json(new apiResponse(
+    200 ,channel[0], "user channel fetched successfully"
+  ))
+
 })
 
 
